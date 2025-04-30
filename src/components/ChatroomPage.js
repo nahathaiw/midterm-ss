@@ -7,14 +7,22 @@ import {
   orderBy,
   onSnapshot,
   where,
-  getDocs
+  getDocs,
+  doc,
+  getDoc,
+  updateDoc,
+  arrayUnion
 } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 
 export default function ChatroomPage() {
   const [chatroomName, setChatroomName] = useState('');
-  const [chatrooms, setChatrooms] = useState([]);
+  const [chatroomPassword, setChatroomPassword] = useState('');
+  const [myRooms, setMyRooms] = useState([]);
+  const [otherRooms, setOtherRooms] = useState([]);
   const navigate = useNavigate();
+
+  const currentEmail = auth.currentUser?.email;
 
   // 🔒 Redirect if not logged in
   useEffect(() => {
@@ -23,24 +31,34 @@ export default function ChatroomPage() {
     }
   }, []);
 
-  // 🔁 Real-time list of chatrooms
+  // 🔁 Load and separate chatrooms
   useEffect(() => {
     const q = query(collection(db, "chatrooms"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const rooms = snapshot.docs.map(doc => ({
+      const allRooms = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      setChatrooms(rooms);
+
+      const mine = allRooms.filter(room =>
+        room.members?.includes(currentEmail)
+      );
+      const others = allRooms.filter(room =>
+        !room.members?.includes(currentEmail)
+      );
+
+      setMyRooms(mine);
+      setOtherRooms(others);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [currentEmail]);
 
   // ➕ Create new chatroom
   const handleCreate = async () => {
     const name = chatroomName.trim();
-    if (!name) return;
+    const password = chatroomPassword.trim();
+    if (!name || !password) return;
 
     try {
       const existing = await getDocs(
@@ -54,12 +72,34 @@ export default function ChatroomPage() {
 
       await addDoc(collection(db, "chatrooms"), {
         name,
-        createdAt: new Date()
+        password,
+        createdAt: new Date(),
+        members: [currentEmail]
       });
 
       setChatroomName('');
+      setChatroomPassword('');
     } catch (error) {
       alert("Error creating chatroom: " + error.message);
+    }
+  };
+
+  // 🔐 Join room with password
+  const joinChatroom = async (room) => {
+    const password = prompt(`Enter password for "${room.name}":`);
+    if (!password) return;
+
+    const roomRef = doc(db, "chatrooms", room.id);
+    const snap = await getDoc(roomRef);
+    const data = snap.data();
+
+    if (data.password === password) {
+      await updateDoc(roomRef, {
+        members: arrayUnion(currentEmail)
+      });
+      alert(`✅ Joined ${room.name}`);
+    } else {
+      alert("❌ Incorrect password.");
     }
   };
 
@@ -68,31 +108,39 @@ export default function ChatroomPage() {
   };
 
   const handleLogout = () => {
-    auth.signOut().then(() => {
-      navigate('/');
-    });
+    auth.signOut().then(() => navigate('/'));
   };
 
   return (
     <div style={{ padding: 20, maxWidth: 600, margin: 'auto' }}>
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
         <h2>Chatrooms</h2>
         <button onClick={handleLogout}>Logout</button>
       </div>
 
-      <div style={{ display: 'flex', gap: 10 }}>
+      {/* Form */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
         <input
           value={chatroomName}
           onChange={(e) => setChatroomName(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Enter new chatroom name"
+          placeholder="Chatroom name"
+          style={{ flex: 1, padding: 8 }}
+        />
+        <input
+          value={chatroomPassword}
+          onChange={(e) => setChatroomPassword(e.target.value)}
+          placeholder="Password"
+          type="password"
           style={{ flex: 1, padding: 8 }}
         />
         <button onClick={handleCreate}>Create</button>
       </div>
 
-      <ul style={{ listStyle: 'none', padding: 0, marginTop: 20 }}>
-        {chatrooms.map(room => (
+      {/* My Rooms */}
+      <h3>✅ My Rooms</h3>
+      <ul style={{ listStyle: 'none', padding: 0 }}>
+        {myRooms.map(room => (
           <li key={room.id} style={{ marginBottom: 10 }}>
             <button
               onClick={() => navigate(`/chatroom/${room.id}`)}
@@ -102,11 +150,24 @@ export default function ChatroomPage() {
                 textAlign: 'left',
                 border: '1px solid #ccc',
                 borderRadius: 5,
-                background: '#f9f9f9'
+                background: '#e0ffe0'
               }}
             >
               {room.name}
             </button>
+          </li>
+        ))}
+      </ul>
+
+      {/* Joinable Rooms */}
+      <h3>🔓 Other Rooms</h3>
+      <ul style={{ listStyle: 'none', padding: 0 }}>
+        {otherRooms.map(room => (
+          <li key={room.id} style={{ marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{room.name}</span>
+              <button onClick={() => joinChatroom(room)}>Join</button>
+            </div>
           </li>
         ))}
       </ul>
