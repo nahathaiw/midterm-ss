@@ -7,15 +7,10 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
-<<<<<<< HEAD
     "firebase": "^11.6.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.5.3",
-=======
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
->>>>>>> 484b00072d46e612f634242ee9c97eea6299da88
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"
   },

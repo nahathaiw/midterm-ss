@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import {
   collection,
   addDoc,
-  onSnapshot,
   query,
   orderBy,
+  onSnapshot,
   where,
   getDocs
 } from 'firebase/firestore';
@@ -16,7 +16,14 @@ export default function ChatroomPage() {
   const [chatrooms, setChatrooms] = useState([]);
   const navigate = useNavigate();
 
-  // Load chatrooms in real-time
+  // 🔒 Redirect if not logged in
+  useEffect(() => {
+    if (!auth.currentUser) {
+      navigate('/');
+    }
+  }, []);
+
+  // 🔁 Real-time list of chatrooms
   useEffect(() => {
     const q = query(collection(db, "chatrooms"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -30,13 +37,16 @@ export default function ChatroomPage() {
     return () => unsubscribe();
   }, []);
 
-  // Create a new chatroom (prevent duplicates)
+  // ➕ Create new chatroom
   const handleCreate = async () => {
     const name = chatroomName.trim();
     if (!name) return;
 
     try {
-      const existing = await getDocs(query(collection(db, "chatrooms"), where("name", "==", name)));
+      const existing = await getDocs(
+        query(collection(db, "chatrooms"), where("name", "==", name))
+      );
+
       if (!existing.empty) {
         alert("Chatroom with this name already exists.");
         return;
@@ -57,9 +67,18 @@ export default function ChatroomPage() {
     if (e.key === "Enter") handleCreate();
   };
 
+  const handleLogout = () => {
+    auth.signOut().then(() => {
+      navigate('/');
+    });
+  };
+
   return (
     <div style={{ padding: 20, maxWidth: 600, margin: 'auto' }}>
-      <h2>Chatrooms</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+        <h2>Chatrooms</h2>
+        <button onClick={handleLogout}>Logout</button>
+      </div>
 
       <div style={{ display: 'flex', gap: 10 }}>
         <input

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
 import {
   collection,
@@ -14,8 +14,21 @@ export default function Chatroom() {
   const { roomId } = useParams();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
+  const navigate = useNavigate();
 
   console.log("🧩 roomId:", roomId);
+
+  // Logout handler
+  const handleLogout = () => {
+    auth.signOut().then(() => {
+      navigate('/');
+    });
+  };
+
+  // Back to lobby handler
+  const handleBackToLobby = () => {
+    navigate('/chatroom');
+  };
 
   // Real-time message listener
   useEffect(() => {
@@ -64,15 +77,28 @@ export default function Chatroom() {
 
   return (
     <div style={{ padding: 20 }}>
-      <h2>Chatroom: {roomId}</h2>
+      {/* Header with back and logout buttons */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button onClick={handleBackToLobby} style={{ padding: '6px 12px' }}>
+            ← Lobby
+          </button>
+          <h2 style={{ margin: 0 }}>Chatroom: {roomId}</h2>
+        </div>
+        <button onClick={handleLogout} style={{ padding: '6px 12px' }}>
+          Logout
+        </button>
+      </div>
 
+      {/* Messages */}
       <div
         style={{
           border: '1px solid #ccc',
           padding: 10,
           height: 300,
           overflowY: 'scroll',
-          marginBottom: 10
+          marginBottom: 10,
+          marginTop: 10
         }}
       >
         {messages.length === 0 ? (
@@ -86,6 +112,7 @@ export default function Chatroom() {
         )}
       </div>
 
+      {/* Input + Send */}
       <input
         value={message}
         onChange={(e) => setMessage(e.target.value)}

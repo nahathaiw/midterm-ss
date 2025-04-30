@@ -1,132 +1,82 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { db, auth } from '../firebase';
+import React, { useState } from 'react';
+import { auth, provider } from '../firebase';
 import {
-  collection,
-  addDoc,
-  query,
-  orderBy,
-  onSnapshot,
-  serverTimestamp
-} from 'firebase/firestore';
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithPopup
+} from 'firebase/auth';
+import { useNavigate } from 'react-router-dom';
 
-export default function Chatroom() {
-  const { roomId } = useParams();
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([]);
+export default function AuthForm() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLogin, setIsLogin] = useState(true);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
 
-  // Log debug info
-  console.log("✅ Chatroom.js is rendering!");
-  console.log("🧩 roomId:", roomId);
-
-  // Listen for new messages in Firestore
-  useEffect(() => {
-    if (!roomId) return;
-
-    const q = query(
-      collection(db, `chatrooms/${roomId}/messages`),
-      orderBy('createdAt', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setMessages(msgs);
-    });
-
-    return () => unsubscribe();
-  }, [roomId]);
-
-  // Auto-scroll to bottom when new message comes in
-  useEffect(() => {
-    const chatbox = document.getElementById('chatbox');
-    if (chatbox) chatbox.scrollTop = chatbox.scrollHeight;
-  }, [messages]);
-
-  // Handle sending a message
-  const handleSend = async () => {
-    const text = message.trim();
-    const user = auth.currentUser;
-
-    if (!text || !user) return;
-
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      await addDoc(collection(db, `chatrooms/${roomId}/messages`), {
-        text,
-        user: user.email,
-        createdAt: serverTimestamp()
-      });
-      setMessage('');
-    } catch (error) {
-      alert("❌ Failed to send message: " + error.message);
+      if (isLogin) {
+        await signInWithEmailAndPassword(auth, email, password);
+        navigate('/chatroom');
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+        navigate('/chatroom');
+      }
+    } catch (err) {
+      setError(err.message);
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") handleSend();
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithPopup(auth, provider);
+      navigate('/chatroom');
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Chatroom: {roomId}</h2>
+    <div style={{ maxWidth: 400, margin: 'auto', padding: 20 }}>
+      <h2>{isLogin ? 'Sign In' : 'Sign Up'}</h2>
 
-      <div
-        id="chatbox"
-        style={{
-          border: '1px solid #ccc',
-          padding: 10,
-          height: 300,
-          overflowY: 'scroll',
-          marginBottom: 10,
-          background: '#fff'
-        }}
-      >
-        {messages.length === 0 ? (
-          <p>No messages yet. Say hi!</p>
-        ) : (
-          messages.map(msg => {
-            const isCurrentUser = msg.user === auth.currentUser?.email;
-            return (
-              <div
-                key={msg.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: isCurrentUser ? 'flex-end' : 'flex-start',
-                  marginBottom: 10,
-                }}
-              >
-                <div
-                  style={{
-                    background: isCurrentUser ? '#dcf8c6' : '#f1f0f0',
-                    color: '#333',
-                    padding: '8px 12px',
-                    borderRadius: '16px',
-                    maxWidth: '70%',
-                    whiteSpace: 'pre-wrap',
-                    textAlign: 'left',
-                  }}
-                >
-                  <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginBottom: 4 }}>
-                    {isCurrentUser ? 'You' : msg.user}
-                  </div>
-                  <div>{msg.text}</div>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          required
+          onChange={(e) => setEmail(e.target.value)}
+          style={{ width: '100%', padding: 8, marginBottom: 10 }}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          required
+          onChange={(e) => setPassword(e.target.value)}
+          style={{ width: '100%', padding: 8, marginBottom: 10 }}
+        />
+        <button type="submit" style={{ width: '100%', padding: 10 }}>
+          {isLogin ? 'Login' : 'Register'}
+        </button>
+      </form>
 
-      <input
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="Type a message"
-        style={{ padding: 8, width: '80%', marginRight: 10 }}
-      />
-      <button onClick={handleSend}>Send</button>
+      <br />
+      <button onClick={handleGoogleSignIn} style={{ width: '100%', padding: 10 }}>
+        Sign in with Google
+      </button>
+
+      {error && <p style={{ color: 'red', marginTop: 10 }}>{error}</p>}
+
+      <p style={{ marginTop: 20 }}>
+        {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
+        <button onClick={() => setIsLogin(!isLogin)}>
+          {isLogin ? 'Sign Up' : 'Sign In'}
+        </button>
+      </p>
     </div>
   );
 }
