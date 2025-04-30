@@ -168,12 +168,23 @@ export default function Chatroom() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={handleBackToLobby}>← Lobby</button>
-          <h2 style={{ margin: 0 }}>Chatroom: {roomId}</h2>
+          <h2 style={{ margin: 0 }}>
+            Chatroom: {chatroomData?.name || roomId}
+          </h2>
+
         </div>
         <div>
-          <button onClick={handleLeaveRoom} style={{ marginRight: 10 }}>Leave Room</button>
-          <button onClick={handleLogout}>Logout</button>
-        </div>
+        <button
+            onClick={() => navigate('/profile', { state: { from: `/chatroom/${roomId}` } })}
+            style={{ marginRight: 10 }}>                
+            View Profile
+            </button>
+            <button onClick={handleLeaveRoom} style={{ marginRight: 10 }}>
+                Leave Room
+            </button>
+            <button onClick={handleLogout}>Logout</button>
+            </div>
+
       </div>
 
       {/* Invite only if creator */}

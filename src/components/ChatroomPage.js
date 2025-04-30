@@ -114,10 +114,19 @@ export default function ChatroomPage() {
   return (
     <div style={{ padding: 20, maxWidth: 600, margin: 'auto' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-        <h2>Chatrooms</h2>
+    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+    <h2>My Chatrooms</h2>
+    <div>
+    <button
+        onClick={() => navigate('/profile', { state: { from: '/chatroom' } })}
+        style={{ marginRight: 10 }}
+        >
+        View Profile
+    </button>
         <button onClick={handleLogout}>Logout</button>
-      </div>
+    </div>
+    </div>
+
 
       {/* Form */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
