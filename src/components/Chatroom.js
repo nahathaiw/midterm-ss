@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
 import {
@@ -11,47 +11,49 @@ import {
   doc,
   setDoc,
   deleteDoc,
-  getDoc
+  getDoc,
+  updateDoc
 } from 'firebase/firestore';
 
 export default function Chatroom() {
   const { roomId } = useParams();
+  const navigate = useNavigate();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
   const [typingUsers, setTypingUsers] = useState([]);
   const [allowed, setAllowed] = useState(false);
   const [chatroomData, setChatroomData] = useState(null);
   const [inviteEmail, setInviteEmail] = useState('');
-  const navigate = useNavigate();
+  const profilesCache = useRef({});
 
-  // 🔐 Check access and load chatroom metadata
+  const user = auth.currentUser;
+
+  // Check access
   useEffect(() => {
     const checkAccess = async () => {
-      if (!roomId || !auth.currentUser) return;
+      if (!roomId || !user) return;
 
       const roomRef = doc(db, 'chatrooms', roomId);
       const snap = await getDoc(roomRef);
-
-      if (snap.exists()) {
-        const data = snap.data();
-        setChatroomData(data);
-
-        if (data.members?.includes(auth.currentUser.email)) {
-          setAllowed(true);
-        } else {
-          alert("🚫 You are not a member of this chatroom.");
-          navigate('/chatroom');
-        }
-      } else {
+      if (!snap.exists()) {
         alert("❌ Chatroom does not exist.");
+        return navigate('/chatroom');
+      }
+
+      const data = snap.data();
+      setChatroomData(data);
+      if (data.members?.includes(user.email)) {
+        setAllowed(true);
+      } else {
+        alert("🚫 You are not a member of this chatroom.");
         navigate('/chatroom');
       }
     };
 
     checkAccess();
-  }, [roomId]);
+  }, [roomId, user, navigate]);
 
-  // 🔁 Load messages
+  // Load messages + profiles
   useEffect(() => {
     if (!roomId || !allowed) return;
 
@@ -60,42 +62,67 @@ export default function Chatroom() {
       orderBy('createdAt', 'asc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setMessages(msgs);
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const newMessages = [];
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
+        const senderUid = data.uid;
+
+        if (!profilesCache.current[senderUid]) {
+          const profileSnap = await getDoc(doc(db, 'profiles', senderUid));
+          if (profileSnap.exists()) {
+            profilesCache.current[senderUid] = profileSnap.data();
+          }
+        }
+
+        newMessages.push({
+          id: docSnap.id,
+          ...data,
+          profile: profilesCache.current[senderUid]
+        });
+      }
+
+      setMessages(newMessages);
     });
 
     return () => unsubscribe();
   }, [roomId, allowed]);
 
-  // 🧠 Typing indicator
+  // Typing indicator
   useEffect(() => {
     if (!roomId || !allowed) return;
-
     const q = collection(db, `chatrooms/${roomId}/typing`);
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const users = snapshot.docs.map(doc => doc.data().user);
-      setTypingUsers(users.filter(email => email !== auth.currentUser?.email));
+      setTypingUsers(users.filter(email => email !== user?.email));
     });
-
     return () => unsubscribe();
-  }, [roomId, allowed]);
+  }, [roomId, allowed, user?.email]);
 
-  // ✉️ Send message
+  // Send message
   const handleSend = async () => {
     const text = message.trim();
     const user = auth.currentUser;
-    if (!text || !user) return;
+    if (!text || !user || !user.email || !user.uid) return;
 
     try {
+      const profileRef = doc(db, 'profiles', user.uid);
+      const profileSnap = await getDoc(profileRef);
+      if (!profileSnap.exists()) {
+        await setDoc(profileRef, {
+          name: user.displayName || 'Anonymous',
+          email: user.email,
+          photoURL: user.photoURL || ''
+        });
+      }
+
       await addDoc(collection(db, `chatrooms/${roomId}/messages`), {
         text,
         user: user.email,
+        uid: user.uid,
         createdAt: serverTimestamp()
       });
+
       setMessage('');
       clearTyping();
     } catch (error) {
@@ -108,7 +135,6 @@ export default function Chatroom() {
   };
 
   const handleTyping = async () => {
-    const user = auth.currentUser;
     if (!user) return;
     const typingRef = doc(db, `chatrooms/${roomId}/typing`, user.uid);
     await setDoc(typingRef, {
@@ -118,7 +144,6 @@ export default function Chatroom() {
   };
 
   const clearTyping = async () => {
-    const user = auth.currentUser;
     if (!user) return;
     const typingRef = doc(db, `chatrooms/${roomId}/typing`, user.uid);
     await deleteDoc(typingRef);
@@ -127,7 +152,6 @@ export default function Chatroom() {
   const handleBackToLobby = () => navigate('/chatroom');
   const handleLogout = () => auth.signOut().then(() => navigate('/'));
 
-  // ➕ Invite another member
   const handleInvite = async () => {
     const email = inviteEmail.trim().toLowerCase();
     if (!email || !chatroomData) return;
@@ -145,11 +169,9 @@ export default function Chatroom() {
     }
   };
 
-  // 🚪 Leave room
   const handleLeaveRoom = async () => {
-    if (!roomId || !auth.currentUser || !chatroomData) return;
-    const updatedMembers = chatroomData.members.filter(email => email !== auth.currentUser.email);
-
+    if (!roomId || !user || !chatroomData) return;
+    const updatedMembers = chatroomData.members.filter(email => email !== user.email);
     try {
       await setDoc(doc(db, 'chatrooms', roomId), { members: updatedMembers }, { merge: true });
       alert("You left the room.");
@@ -159,7 +181,21 @@ export default function Chatroom() {
     }
   };
 
-  // 🧱 Block render if not authorized
+  // 🗑️ Unsend (soft-delete) message
+  const handleDeleteMessage = async (messageId) => {
+    const confirmDelete = window.confirm("Do you want to unsend this message?");
+    if (!confirmDelete) return;
+    try {
+      const ref = doc(db, `chatrooms/${roomId}/messages`, messageId);
+      await updateDoc(ref, {
+        deleted: true,
+        text: ''
+      });
+    } catch (err) {
+      alert("❌ Failed to unsend message: " + err.message);
+    }
+  };
+
   if (!allowed) return null;
 
   return (
@@ -171,24 +207,18 @@ export default function Chatroom() {
           <h2 style={{ margin: 0 }}>
             Chatroom: {chatroomData?.name || roomId}
           </h2>
-
         </div>
         <div>
-        <button
-            onClick={() => navigate('/profile', { state: { from: `/chatroom/${roomId}` } })}
-            style={{ marginRight: 10 }}>                
+          <button onClick={() => navigate('/profile', { state: { from: `/chatroom/${roomId}` } })} style={{ marginRight: 10 }}>
             View Profile
-            </button>
-            <button onClick={handleLeaveRoom} style={{ marginRight: 10 }}>
-                Leave Room
-            </button>
-            <button onClick={handleLogout}>Logout</button>
-            </div>
-
+          </button>
+          <button onClick={handleLeaveRoom} style={{ marginRight: 10 }}>Leave Room</button>
+          <button onClick={handleLogout}>Logout</button>
+        </div>
       </div>
 
-      {/* Invite only if creator */}
-      {chatroomData?.members?.[0] === auth.currentUser?.email && (
+      {/* Creator invite */}
+      {chatroomData?.members?.[0] === user?.email && (
         <div style={{ margin: '20px 0' }}>
           <h4>Invite member</h4>
           <div style={{ display: 'flex', gap: 10 }}>
@@ -204,21 +234,13 @@ export default function Chatroom() {
         </div>
       )}
 
-      {/* Members list */}
+      {/* Members */}
       <div style={{ marginBottom: 10, fontSize: '0.9rem', color: '#444' }}>
         <strong>Members:</strong> {chatroomData?.members?.join(', ')}
       </div>
 
       {/* Messages */}
-      <div
-        style={{
-          border: '1px solid #ccc',
-          padding: 10,
-          height: 300,
-          overflowY: 'scroll',
-          margin: '10px 0'
-        }}
-      >
+      <div style={{ border: '1px solid #ccc', padding: 10, height: 300, overflowY: 'scroll', margin: '10px 0' }}>
         {messages.length === 0 ? (
           <p>No messages yet. Say hi!</p>
         ) : (
@@ -226,11 +248,47 @@ export default function Chatroom() {
             const time = msg.createdAt?.toDate
               ? msg.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : '';
+            const isMe = msg.uid === user?.uid;
+            const profile = msg.profile || {};
             return (
-              <div key={msg.id} style={{ marginBottom: 10 }}>
-                <div style={{ fontWeight: 'bold' }}>{msg.user}</div>
-                <div>{msg.text}</div>
-                <div style={{ fontSize: '0.75rem', color: '#888' }}>{time}</div>
+              <div
+                key={msg.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 10,
+                  marginBottom: 10,
+                  position: 'relative'
+                }}
+              >
+                {profile.photoURL && (
+                  <img src={profile.photoURL} alt="Profile" style={{ width: 32, height: 32, borderRadius: '50%' }} />
+                )}
+                <div>
+                  <div style={{ fontWeight: 'bold' }}>
+                    {profile.name || msg.user} {isMe ? '(You)' : ''}
+                  </div>
+                  <div style={{ fontStyle: msg.deleted ? 'italic' : 'normal', color: msg.deleted ? '#888' : 'inherit' }}>
+                    {msg.deleted ? '🗑️ This message was unsent.' : msg.text}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#888' }}>{time}</div>
+                </div>
+                {isMe && !msg.deleted && (
+                  <button
+                    onClick={() => handleDeleteMessage(msg.id)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'red',
+                      cursor: 'pointer',
+                      position: 'absolute',
+                      right: 0
+                    }}
+                    title="Unsend"
+                  >
+                    🗑️
+                  </button>
+                )}
               </div>
             );
           })
