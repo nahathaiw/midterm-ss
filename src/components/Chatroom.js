@@ -19,6 +19,10 @@ export default function Chatroom() {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const [message, setMessage] = useState('');
+  const [imageUrl, setImageUrl] = useState(''); // to send img url
+  const [gifSearchTerm, setGifSearchTerm] = useState('');
+  const [gifResults, setGifResults] = useState([]);
+
   const [messages, setMessages] = useState([]);
   const [typingUsers, setTypingUsers] = useState([]);
   const [allowed, setAllowed] = useState(false);
@@ -137,7 +141,7 @@ export default function Chatroom() {
         await setDoc(profileRef, {
           name: user.displayName || 'Anonymous',
           email: user.email,
-          photoURL: user.photoURL || ''
+          photoURL: user.photoURL || 'https://i.pravatar.cc/150?u=default'
         });
       }
 
@@ -154,6 +158,53 @@ export default function Chatroom() {
       alert("❌ Failed to send message: " + error.message);
     }
   };
+
+  const handleSendImage = async () => {
+    const url = imageUrl.trim();
+    if (!url || !user?.email || !user?.uid) return;
+  
+    try {
+      await addDoc(collection(db, `chatrooms/${roomId}/messages`), {
+        imageUrl: url,
+        user: user.email,
+        uid: user.uid,
+        createdAt: serverTimestamp()
+      });
+      setImageUrl('');
+    } catch (error) {
+      alert("❌ Failed to send image: " + error.message);
+    }
+  };
+  const fetchGifs = async () => {
+    if (!gifSearchTerm) return;
+    try {
+      const res = await fetch(
+        `https://api.giphy.com/v1/gifs/search?api_key=4zAnusMW1meje47uPJOKJUU6dmQuY9xq&q=${encodeURIComponent(gifSearchTerm)}&limit=10&rating=pg`
+      );
+      const data = await res.json();
+      setGifResults(data.data);
+    } catch (err) {
+      console.error('Failed to fetch GIFs:', err);
+    }
+  };
+  
+  const handleSendGif = async (gifUrl) => {
+    if (!gifUrl || !user?.email || !user?.uid) return;
+    try {
+      await addDoc(collection(db, `chatrooms/${roomId}/messages`), {
+        imageUrl: gifUrl,
+        user: user.email,
+        uid: user.uid,
+        createdAt: serverTimestamp()
+      });
+      setGifResults([]);
+      setGifSearchTerm('');
+    } catch (err) {
+      alert("❌ Failed to send GIF: " + err.message);
+    }
+  };
+  
+
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter") handleSend();
@@ -189,6 +240,13 @@ export default function Chatroom() {
       setChatroomData(prev => ({ ...prev, members: updatedMembers }));
       setInviteEmail('');
       alert(`✅ Invited ${email}`);
+      await addDoc(collection(db, `chatrooms/${roomId}/messages`), {
+        text: `${email} was invited to the room.`,
+        uid: 'system',
+        user: 'system',
+        createdAt: serverTimestamp()
+      });
+      
     } catch (err) {
       alert("❌ Failed to invite: " + err.message);
     }
@@ -280,8 +338,13 @@ export default function Chatroom() {
           <p>No messages yet. Say hi!</p>
         ) : (
             messages
-            .filter(msg => msg.text?.toLowerCase().includes(searchTerm.toLowerCase()))
+            .filter(
+              msg =>
+                msg.text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                msg.imageUrl
+            )
             .map(msg => {
+          
                       const time = msg.createdAt?.toDate
               ? msg.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : '';
@@ -298,9 +361,12 @@ export default function Chatroom() {
                   position: 'relative'
                 }}
               >
-                {profile.photoURL && (
-                  <img src={profile.photoURL} alt="Profile" style={{ width: 32, height: 32, borderRadius: '50%' }} />
-                )}
+                <img
+                src={profile.photoURL || 'https://i.pravatar.cc/150?u=default'}
+                alt="Profile"
+                style={{ width: 32, height: 32, borderRadius: '50%' }}
+                />
+
                 <div>
                   <div style={{ fontWeight: 'bold' }}>
                     {profile.name || msg.user} {isMe ? '(You)' : ''}
@@ -308,6 +374,13 @@ export default function Chatroom() {
                   <div style={{ fontStyle: msg.deleted ? 'italic' : 'normal', color: msg.deleted ? '#888' : 'inherit' }}>
                     {msg.deleted ? '🗑️ This message was unsent.' : msg.text}
                   </div>
+                  {msg.imageUrl && (
+                    <img
+                        src={msg.imageUrl}
+                        alt="sent"
+                        style={{ maxWidth: '200px', marginTop: 5, borderRadius: 8 }}
+                    />
+                    )}                
                   <div style={{ fontSize: '0.75rem', color: '#888' }}>{time}</div>
                 </div>
                 {isMe && !msg.deleted && (
@@ -355,6 +428,43 @@ export default function Chatroom() {
         />
         <button onClick={handleSend}>Send</button>
       </div>
+      <div style={{ marginTop: 10 }}>
+        <input
+            type="text"
+            placeholder="Paste image URL"
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            style={{ width: '80%', padding: 8, marginRight: 10 }}
+        />
+        <button onClick={handleSendImage}>Send Image</button>
+       </div>
+       <div style={{ marginTop: 20 }}>
+  <input
+    type="text"
+    placeholder="Search GIFs"
+    value={gifSearchTerm}
+    onChange={(e) => setGifSearchTerm(e.target.value)}
+    style={{ width: '60%', padding: 8, marginRight: 10 }}
+  />
+  <button onClick={fetchGifs}>Search GIFs</button>
+</div>
+
+{gifResults.length > 0 && (
+  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
+    {gifResults.map((gif) => (
+      <img
+        key={gif.id}
+        src={gif.images.fixed_height_small.url}
+        alt={gif.title}
+        style={{ cursor: 'pointer', borderRadius: 8 }}
+        onClick={() => handleSendGif(gif.images.original.url)}
+      />
+    ))}
+  </div>
+)}
+
+
     </div>
+
   );
 }
