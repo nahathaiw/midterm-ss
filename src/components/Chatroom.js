@@ -24,10 +24,23 @@ export default function Chatroom() {
   const [allowed, setAllowed] = useState(false);
   const [chatroomData, setChatroomData] = useState(null);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const profilesCache = useRef({});
 
   const user = auth.currentUser;
 
+  // add the notification
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+          console.log("✅ Notifications enabled");
+        }
+      });
+    }
+  }, []);
+  
+  
   // Check access
   useEffect(() => {
     const checkAccess = async () => {
@@ -80,6 +93,18 @@ export default function Chatroom() {
           ...data,
           profile: profilesCache.current[senderUid]
         });
+
+        if (
+            document.visibilityState !== 'visible' &&
+            data.uid !== user?.uid &&
+            Notification.permission === "granted"
+          ) {
+            new Notification(`New message from ${profilesCache.current[senderUid]?.name || data.user}`, {
+              body: data.text || 'Sent a message',
+              icon: profilesCache.current[senderUid]?.photoURL || '/chat-icon.png'
+            });
+          }
+          
       }
 
       setMessages(newMessages);
@@ -238,14 +263,26 @@ export default function Chatroom() {
       <div style={{ marginBottom: 10, fontSize: '0.9rem', color: '#444' }}>
         <strong>Members:</strong> {chatroomData?.members?.join(', ')}
       </div>
+      
+      <div style={{ margin: '10px 0' }}>
+        <input
+            type="text"
+            placeholder="Search messages..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ padding: 8, width: '100%' }}
+        />
+    </div>
 
       {/* Messages */}
       <div style={{ border: '1px solid #ccc', padding: 10, height: 300, overflowY: 'scroll', margin: '10px 0' }}>
         {messages.length === 0 ? (
           <p>No messages yet. Say hi!</p>
         ) : (
-          messages.map(msg => {
-            const time = msg.createdAt?.toDate
+            messages
+            .filter(msg => msg.text?.toLowerCase().includes(searchTerm.toLowerCase()))
+            .map(msg => {
+                      const time = msg.createdAt?.toDate
               ? msg.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : '';
             const isMe = msg.uid === user?.uid;
