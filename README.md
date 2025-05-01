@@ -67,7 +67,7 @@
 | Private Chatroom    | Group chatrooms with join protection and history          | ✅        |
 | React Framework     | Built using React and functional components               | ✅        |
 | Google Login        | Google sign-in available                                  | ✅        |
-| Chrome Notification | Enabled and tested via Notification API                  | ✅        |
+| Chrome Notification | Enabled and tested via Notification API                   | ✅        |
 | Animation           | Includes basic animations (fade-in)                       | ✅        |
 | Bonus - Profile     | Profile page with editable fields                         | ✅        |
 | Bonus - Image       | Sending image URLs                                        | ✅        |
@@ -86,3 +86,17 @@
 ```bash
 git clone https://gitlab.com/your-username/chatroom-app.git
 cd chatroom-app
+
+
+## 🧠 Git Version Control
+
+Git was used consistently throughout the development process.
+
+Sample Git commit history:
+-  Regular commits with meaningful messages
+-  Separate commits for each feature (e.g., notifications, RWD, send GIFs)
+-  Tracked progress from initial setup to final version
+
+- I mostly commit into the master branch then I create other branch to save my progress
+🔗 GitLab repository: [https://gitlab.com/nahathai.wong/midterm-ss](https://gitlab.com/nahathai.wong/midterm-ss)
+
