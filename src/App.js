@@ -5,6 +5,9 @@ import ChatroomPage from './components/ChatroomPage';
 import Chatroom from './components/Chatroom';
 import ProfilePage from './components/ProfilePage';
 
+import NotificationTest from './components/NotificationTest';
+
+
 function App() {
   return (
     <Router>
@@ -13,6 +16,7 @@ function App() {
         <Route path="/chatroom" element={<ChatroomPage />} />
         <Route path="/chatroom/:roomId" element={<Chatroom />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/test-notification" element={<NotificationTest />} />
       </Routes>
     </Router>
   );

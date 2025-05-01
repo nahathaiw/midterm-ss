@@ -34,7 +34,7 @@ export default function Chatroom() {
     if ("Notification" in window && Notification.permission !== "granted") {
       Notification.requestPermission().then(permission => {
         if (permission === "granted") {
-          console.log("✅ Notifications enabled");
+            console.log("Notification permission status:", permission);
         }
       });
     }
@@ -95,9 +95,9 @@ export default function Chatroom() {
         });
 
         if (
-            document.visibilityState !== 'visible' &&
             data.uid !== user?.uid &&
             Notification.permission === "granted"
+          
           ) {
             new Notification(`New message from ${profilesCache.current[senderUid]?.name || data.user}`, {
               body: data.text || 'Sent a message',

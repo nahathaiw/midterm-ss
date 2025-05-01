@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Notification Test</title>
+</head>
+<body>
+  <h1>🔔 Notification Test</h1>
+  <button onclick="requestPermission()">Enable Notifications</button>
+  <button onclick="sendNotification()">Send Test Notification</button>
+
+  <script>
+    function requestPermission() {
+      if ("Notification" in window) {
+        Notification.requestPermission().then(permission => {
+          alert("Permission: " + permission);
+        });
+      } else {
+        alert("This browser does not support notifications.");
+      }
+    }
+
+    function sendNotification() {
+      if (Notification.permission === "granted") {
+        new Notification("✅ It works!", {
+          body: "This is a test notification.",
+          icon: "https://cdn-icons-png.flaticon.com/512/1827/1827279.png"
+        });
+      } else {
+        alert("Please allow notifications first.");
+      }
+    }
+  </script>
+</body>
+</html>
