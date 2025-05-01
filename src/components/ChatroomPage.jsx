@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { FaComments } from 'react-icons/fa'; //  for the icon + logo bby
 import { db, auth } from '../firebase';
 import {
   collection,
@@ -114,18 +115,18 @@ export default function ChatroomPage() {
   return (
     <div style={{ padding: 20, maxWidth: 600, margin: 'auto' }}>
       {/* Header */}
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-    <h2>My Chatrooms</h2>
-    <div>
-    <button
-        onClick={() => navigate('/profile', { state: { from: '/chatroom' } })}
-        style={{ marginRight: 10 }}
-        >
-        View Profile
-    </button>
-        <button onClick={handleLogout}>Logout</button>
-    </div>
-    </div>
+      <div className="chat-header">
+        <div className="logo-text">
+          <FaComments className="logo-icon" />
+          Yappin
+        </div>
+        <div className="chat-header-actions">
+          <button onClick={() => navigate('/profile', { state: { from: '/chatroom' } })}>
+            View Profile
+          </button>
+          <button onClick={handleLogout}>Logout</button>
+        </div>
+      </div>
 
 
       {/* Form */}

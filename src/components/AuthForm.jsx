@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { auth, provider } from '../firebase';
+import { FaComments } from 'react-icons/fa';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -39,44 +40,41 @@ export default function AuthForm() {
   };
 
   return (
-    <div style={{ maxWidth: 400, margin: 'auto', padding: 20 }}>
-      <h2>{isLogin ? 'Sign In' : 'Sign Up'}</h2>
-
-      <form onSubmit={handleSubmit}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          required
-          onChange={(e) => setEmail(e.target.value)}
-          style={{ width: '100%', padding: 8, marginBottom: 10 }}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          required
-          onChange={(e) => setPassword(e.target.value)}
-          style={{ width: '100%', padding: 8, marginBottom: 10 }}
-        />
-        <button type="submit" style={{ width: '100%', padding: 10 }}>
-          {isLogin ? 'Login' : 'Register'}
+    <div className="auth-page">
+      <div className="auth-card fade-in">
+      <h1 className="logo-text">
+      <FaComments className="logo-icon" />
+      Yappin
+      </h1>
+        <h3>{isLogin ? 'Sign In' : 'Sign Up'}</h3>
+        <form onSubmit={handleSubmit} className="auth-form">
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            required
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            required
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button type="submit">{isLogin ? 'Login' : 'Register'}</button>
+        </form>
+        <button className="google-btn" onClick={handleGoogleSignIn}>
+          Sign in with Google
         </button>
-      </form>
-
-      <br />
-      <button onClick={handleGoogleSignIn} style={{ width: '100%', padding: 10 }}>
-        Sign in with Google
-      </button>
-
-      {error && <p style={{ color: 'red', marginTop: 10 }}>{error}</p>}
-
-      <p style={{ marginTop: 20 }}>
-        {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
-        <button onClick={() => setIsLogin(!isLogin)}>
-          {isLogin ? 'Sign Up' : 'Sign In'}
-        </button>
-      </p>
+        {error && <p className="error-msg">{error}</p>}
+        <p className="toggle-text">
+          {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
+          <button type="button" onClick={() => setIsLogin(!isLogin)} className="link-btn">
+            {isLogin ? 'Sign Up' : 'Sign In'}
+          </button>
+        </p>
+      </div>
     </div>
   );
 }

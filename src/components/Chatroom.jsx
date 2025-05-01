@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
 import { getDocs } from 'firebase/firestore';
 import '../App.css';
+import { FaComments } from 'react-icons/fa';// for the logo
+
 
 import {
   collection,
@@ -323,23 +325,27 @@ export default function Chatroom() {
   if (!allowed) return null;
 
   return (
-    <div style={{ padding: 20 }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={handleBackToLobby}>← Lobby</button>
-          <h2 style={{ margin: 0 }}>
-            Chatroom: {chatroomData?.name || roomId}
-          </h2>
-        </div>
-        <div>
-          <button onClick={() => navigate('/profile', { state: { from: `/chatroom/${roomId}` } })} style={{ marginRight: 10 }}>
-            View Profile
-          </button>
-          <button onClick={handleLeaveRoom} style={{ marginRight: 10 }}>Leave Room</button>
-          <button onClick={handleLogout}>Logout</button>
-        </div>
+  <div className="chatroom-page">
+    {/* Header */}
+      <div className="chat-header">
+      <div className="logo-text">
+        <FaComments className="logo-icon" />
+        Yappin
       </div>
+      <div className="chat-header-actions">
+        <button onClick={handleBackToLobby}>← Lobby</button>
+        <button onClick={() => navigate('/profile', { state: { from: `/chatroom/${roomId}` } })}>
+          Profile
+        </button>
+        <button onClick={handleLeaveRoom}>Leave Room</button>
+        <button onClick={handleLogout}>Logout</button>
+      </div>
+    </div>
+
+    <h2 style={{ margin: '20px 0' }}>
+      Chatroom: {chatroomData?.name || roomId}
+    </h2>
+
 
       {/* Creator invite */}
       {chatroomData?.members?.[0] === user?.email && (
@@ -372,9 +378,22 @@ export default function Chatroom() {
             style={{ padding: 8, width: '100%' }}
         />
     </div>
+    <div className="message-area">
+      {/* Messages go here */}
+    </div>
 
-      {/* Messages */}
-      <div style={{ border: '1px solid #ccc', padding: 10, height: 300, overflowY: 'scroll', margin: '10px 0' }}>
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: 10,
+          margin: '10px 0',
+          border: '1px solid #ccc',
+          borderRadius: '8px',
+          backgroundColor: '#fff'
+        }}
+      >
+
         {messages.length === 0 ? (
           <p>No messages yet. Say hi!</p>
         ) : (
@@ -467,42 +486,44 @@ export default function Chatroom() {
       </div>
 
       {/* Input */}
-      <div>
-        <input
-          value={message}
-          onChange={(e) => {
-            setMessage(e.target.value);
-            handleTyping();
-          }}
-          onBlur={clearTyping}
-          onKeyDown={(e) => {
-            handleKeyDown(e);
-            handleTyping();
-          }}
-          placeholder="Type a message"
-          style={{ padding: 8, width: '80%', marginRight: 10 }}
-        />
-        <button onClick={handleSend}>Send</button>
-      </div>
-      <div style={{ marginTop: 10 }}>
-        <input
-            type="text"
-            placeholder="Paste image URL"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            style={{ width: '80%', padding: 8, marginRight: 10 }}
-        />
-        <button onClick={handleSendImage}>Send Image</button>
-       </div>
-       <div style={{ marginTop: 20 }}>
-  <input
-    type="text"
-    placeholder="Search GIFs"
-    value={gifSearchTerm}
-    onChange={(e) => setGifSearchTerm(e.target.value)}
-    style={{ width: '60%', padding: 8, marginRight: 10 }}
-  />
-  <button onClick={fetchGifs}>Search GIFs</button>
+      <div style={{ marginTop: 'auto' }}>
+        <div>
+          <input
+            value={message}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              handleTyping();
+            }}
+            onBlur={clearTyping}
+            onKeyDown={(e) => {
+              handleKeyDown(e);
+              handleTyping();
+            }}
+            placeholder="Type a message"
+            style={{ padding: 8, width: '80%', marginRight: 10 }}
+          />
+          <button onClick={handleSend}>Send</button>
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <input
+              type="text"
+              placeholder="Paste image URL"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              style={{ width: '80%', padding: 8, marginRight: 10 }}
+          />
+          <button onClick={handleSendImage}>Send Image</button>
+        </div>
+        <div style={{ marginTop: 20 }}>
+    <input
+      type="text"
+      placeholder="Search GIFs"
+      value={gifSearchTerm}
+      onChange={(e) => setGifSearchTerm(e.target.value)}
+      style={{ width: '60%', padding: 8, marginRight: 10 }}
+    />
+    <button onClick={fetchGifs}>Search GIFs</button>
+  </div>
 </div>
 
 {gifResults.length > 0 && (

@@ -5,7 +5,7 @@ import ChatroomPage from './components/ChatroomPage';
 import Chatroom from './components/Chatroom';
 import ProfilePage from './components/ProfilePage';
 
-import NotificationTest from './components/NotificationTest';
+// import NotificationTest from './components/NotificationTest';
 
 
 function App() {
