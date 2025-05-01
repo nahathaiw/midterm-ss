@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
+import { getDocs } from 'firebase/firestore';
 import {
   collection,
   addDoc,
@@ -48,24 +49,49 @@ export default function Chatroom() {
   // Check access
   useEffect(() => {
     const checkAccess = async () => {
-      if (!roomId || !user) return;
-
-      const roomRef = doc(db, 'chatrooms', roomId);
-      const snap = await getDoc(roomRef);
-      if (!snap.exists()) {
-        alert("❌ Chatroom does not exist.");
-        return navigate('/chatroom');
-      }
-
-      const data = snap.data();
-      setChatroomData(data);
-      if (data.members?.includes(user.email)) {
-        setAllowed(true);
-      } else {
-        alert("🚫 You are not a member of this chatroom.");
-        navigate('/chatroom');
-      }
-    };
+        if (!roomId || !user) return;
+      
+        const roomRef = doc(db, 'chatrooms', roomId);
+        const snap = await getDoc(roomRef);
+        if (!snap.exists()) {
+          alert("❌ Chatroom does not exist.");
+          return navigate('/chatroom');
+        }
+      
+        const data = snap.data();
+        setChatroomData(data);
+      
+        if (data.members?.includes(user.email)) {
+          setAllowed(true);
+      
+          // ✅ Check if the latest message was already a "user joined" system message
+          const msgQuery = query(
+            collection(db, `chatrooms/${roomId}/messages`),
+            orderBy('createdAt', 'desc'),
+            // Only check the last 5 messages just to be safe
+          );
+          const latestSnap = await getDocs(msgQuery);
+          const alreadyAnnounced = latestSnap.docs.slice(0, 5).some(doc => {
+            const m = doc.data();
+            return m.uid === 'system' && m.text === `${user.email} joined the room.`;
+          });
+      
+          if (!alreadyAnnounced) {
+            await addDoc(collection(db, `chatrooms/${roomId}/messages`), {
+              text: `${user.email} joined the room.`,
+              uid: 'system',
+              user: 'system',
+              createdAt: serverTimestamp()
+            });
+          }
+      
+        } else {
+          alert("🚫 You are not a member of this chatroom.");
+          navigate('/chatroom');
+        }
+      };
+      
+      
 
     checkAccess();
   }, [roomId, user, navigate]);
@@ -258,6 +284,13 @@ export default function Chatroom() {
     try {
       await setDoc(doc(db, 'chatrooms', roomId), { members: updatedMembers }, { merge: true });
       alert("You left the room.");
+      await addDoc(collection(db, `chatrooms/${roomId}/messages`), {
+        text: `${user.email} left the room.`,
+        uid: 'system',
+        user: 'system',
+        createdAt: serverTimestamp()
+      });
+      
       navigate('/chatroom');
     } catch (err) {
       alert("❌ Failed to leave: " + err.message);
@@ -349,58 +382,70 @@ export default function Chatroom() {
               ? msg.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : '';
             const isMe = msg.uid === user?.uid;
+            const isSystem = msg.uid === 'system';
             const profile = msg.profile || {};
             return (
-              <div
+            <div
                 key={msg.id}
                 style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 10,
-                  marginBottom: 10,
-                  position: 'relative'
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+                marginBottom: 10,
+                position: 'relative',
+                background: isSystem ? '#f5f5f5' : 'transparent',
+                padding: isSystem ? 10 : 0,
+                borderRadius: isSystem ? 8 : 0,
+                color: isSystem ? '#333' : 'inherit',
+                fontStyle: isSystem ? 'italic' : 'normal'
                 }}
-              >
+            >
+                {!isSystem && (
                 <img
-                src={profile.photoURL || 'https://i.pravatar.cc/150?u=default'}
-                alt="Profile"
-                style={{ width: 32, height: 32, borderRadius: '50%' }}
+                    src={profile.photoURL || 'https://i.pravatar.cc/150?u=default'}
+                    alt="Profile"
+                    style={{ width: 32, height: 32, borderRadius: '50%' }}
                 />
+                )}
 
                 <div>
-                  <div style={{ fontWeight: 'bold' }}>
+                {!isSystem && (
+                    <div style={{ fontWeight: 'bold' }}>
                     {profile.name || msg.user} {isMe ? '(You)' : ''}
-                  </div>
-                  <div style={{ fontStyle: msg.deleted ? 'italic' : 'normal', color: msg.deleted ? '#888' : 'inherit' }}>
+                    </div>
+                )}
+                <div>
                     {msg.deleted ? '🗑️ This message was unsent.' : msg.text}
-                  </div>
-                  {msg.imageUrl && (
-                    <img
-                        src={msg.imageUrl}
-                        alt="sent"
-                        style={{ maxWidth: '200px', marginTop: 5, borderRadius: 8 }}
-                    />
-                    )}                
-                  <div style={{ fontSize: '0.75rem', color: '#888' }}>{time}</div>
                 </div>
-                {isMe && !msg.deleted && (
-                  <button
+                {msg.imageUrl && (
+                    <img
+                    src={msg.imageUrl}
+                    alt="sent"
+                    style={{ maxWidth: '200px', marginTop: 5, borderRadius: 8 }}
+                    />
+                )}
+                <div style={{ fontSize: '0.75rem', color: '#888' }}>{time}</div>
+                </div>
+
+                {!isSystem && isMe && !msg.deleted && (
+                <button
                     onClick={() => handleDeleteMessage(msg.id)}
                     style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'red',
-                      cursor: 'pointer',
-                      position: 'absolute',
-                      right: 0
+                    background: 'none',
+                    border: 'none',
+                    color: 'red',
+                    cursor: 'pointer',
+                    position: 'absolute',
+                    right: 0
                     }}
                     title="Unsend"
-                  >
+                >
                     🗑️
-                  </button>
+                </button>
                 )}
-              </div>
+            </div>
             );
+
           })
         )}
         {typingUsers.length > 0 && (
