@@ -29,7 +29,7 @@ export default function ChatroomPage() {
     if (!auth.currentUser) {
       navigate('/');
     }
-  }, []);
+  },  [navigate]);
 
   // 🔁 Load and separate chatrooms
   useEffect(() => {

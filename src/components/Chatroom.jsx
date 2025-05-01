@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../firebase';
 import { getDocs } from 'firebase/firestore';
+import '../App.css';
+
 import {
   collection,
   addDoc,
@@ -30,6 +32,7 @@ export default function Chatroom() {
   const [chatroomData, setChatroomData] = useState(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const bottomRef = useRef(null);
   const profilesCache = useRef({});
 
   const user = auth.currentUser;
@@ -138,11 +141,16 @@ export default function Chatroom() {
       }
 
       setMessages(newMessages);
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     });
 
     return () => unsubscribe();
   }, [roomId, allowed]);
 
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+  
   // Typing indicator
   useEffect(() => {
     if (!roomId || !allowed) return;
@@ -386,20 +394,21 @@ export default function Chatroom() {
             const profile = msg.profile || {};
             return (
             <div
-                key={msg.id}
-                style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 10,
-                marginBottom: 10,
-                position: 'relative',
-                background: isSystem ? '#f5f5f5' : 'transparent',
-                padding: isSystem ? 10 : 0,
-                borderRadius: isSystem ? 8 : 0,
-                color: isSystem ? '#333' : 'inherit',
-                fontStyle: isSystem ? 'italic' : 'normal'
-                }}
-            >
+            key={msg.id}
+            className="fade-in"
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 10,
+              marginBottom: 10,
+              position: 'relative',
+              background: isSystem ? '#f5f5f5' : 'transparent',
+              padding: isSystem ? 10 : 0,
+              borderRadius: isSystem ? 8 : 0,
+              color: isSystem ? '#333' : 'inherit',
+              fontStyle: isSystem ? 'italic' : 'normal'
+            }}
+          >
                 {!isSystem && (
                 <img
                     src={profile.photoURL || 'https://i.pravatar.cc/150?u=default'}
@@ -453,6 +462,8 @@ export default function Chatroom() {
             {typingUsers.join(', ')} {typingUsers.length > 1 ? 'are' : 'is'} typing...
           </p>
         )}
+        <div ref={bottomRef}/>
+
       </div>
 
       {/* Input */}

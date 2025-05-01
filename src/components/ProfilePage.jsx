@@ -39,7 +39,7 @@ export default function UserProfile() {
     };
 
     fetchProfile();
-  }, [user]);
+  }, [user, navigate]);
 
   const handleChange = (e) => {
     setProfile({ ...profile, [e.target.name]: e.target.value });
