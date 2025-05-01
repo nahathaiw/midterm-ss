@@ -378,21 +378,21 @@ export default function Chatroom() {
             style={{ padding: 8, width: '100%' }}
         />
     </div>
-    <div className="message-area">
-      {/* Messages go here */}
-    </div>
 
-      <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: 10,
-          margin: '10px 0',
-          border: '1px solid #ccc',
-          borderRadius: '8px',
-          backgroundColor: '#fff'
-        }}
-      >
+
+    <div
+      style={{
+        height: '40vh', // ← force a visible height
+        overflowY: 'scroll',
+        WebkitOverflowScrolling: 'touch',
+        padding: 10,
+        margin: '10px 0',
+        border: '1px solid #ccc',
+        borderRadius: '8px',
+        backgroundColor: '#fff'
+      }}
+    >
+
 
         {messages.length === 0 ? (
           <p>No messages yet. Say hi!</p>
@@ -482,6 +482,11 @@ export default function Chatroom() {
           </p>
         )}
         <div ref={bottomRef}/>
+        {/* 🔧 DEBUG: show message texts as raw JSON
+<div style={{ background: 'yellow', padding: 10, marginTop: 20 }}>
+  Debug Message Texts: {JSON.stringify(messages.map(m => m.text || '[image/gif]'))}
+</div> */}
+
 
       </div>
 
